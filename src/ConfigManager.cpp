@@ -21,6 +21,10 @@ void ConfigManager::loadSettings(const std::string& filename) {
             settings[key] = value;
         }
     }
+
+    localConfig_.api_key = settings["api_key"];
+    localConfig_.public_key = settings["public_key"];
+    localConfig_.private_key = settings["private_key"];
 }
 
 void ConfigManager::saveSettings(const std::string& filename) {

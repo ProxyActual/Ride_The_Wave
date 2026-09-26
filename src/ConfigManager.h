@@ -5,6 +5,12 @@
 
 class ConfigManager {
     public:
+        struct Config {
+            std::string api_key;
+            std::string public_key;
+            std::string private_key;
+        } localConfig_;
+
         ConfigManager();
         std::map<std::string, std::string> getSettings() const;
         void loadSettings(const std::string& filename);

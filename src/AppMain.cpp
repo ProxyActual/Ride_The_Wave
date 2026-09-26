@@ -10,7 +10,6 @@ int main(){
     ConfigManager configManager;
     configManager.loadSettings("config.txt");
 
-    for (const auto& setting : configManager.getSettings()) {
-        std::cout << setting.first << ":" << setting.second << std::endl;
-    }
+    
+
 }
