@@ -11,7 +11,7 @@ int main(){
     ConfigManager configManager;
     configManager.loadSettings("config.txt");
 
-    RobinhoodConnector robinhoodConnector;
+    RobinhoodConnector robinhoodConnector(configManager.localConfig_.api_key, configManager.localConfig_.private_key);
     
     try {
         std::string orders = robinhoodConnector.getOrders();

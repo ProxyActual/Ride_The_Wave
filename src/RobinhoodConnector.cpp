@@ -9,15 +9,17 @@
 #include <string>
 #include <cstring>
 
-RobinhoodConnector::RobinhoodConnector() {
+RobinhoodConnector::RobinhoodConnector(std::string apiKey, std::string privateKey) {
+    apiKey_ = apiKey;
+    privateKey_ = privateKey;
 }
 
 RobinhoodConnector::~RobinhoodConnector() {
 }
 
 std::string RobinhoodConnector::getOrders() {
-    const char* apiKey = std::getenv("ROBINHOOD_API_KEY");
-    const char* encodedSeed = std::getenv("ROBINHOOD_PRIVATE_KEY_BASE64");
+    const char* apiKey = apiKey_.c_str();
+    const char* encodedSeed = privateKey_.c_str();
     if (!apiKey || !encodedSeed) {
         throw std::runtime_error("Robinhood credentials are not set");
     }
