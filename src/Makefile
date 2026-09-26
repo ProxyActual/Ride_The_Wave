@@ -1,15 +1,8 @@
- CXX ?= g++
-CXXFLAGS ?= -std=c++17 -Wall -Wextra
+CORE_APP_SRC = AppMain.cpp \
+	ConfigManager.cpp
 
-.PHONY: all RobinhoodConnectorTest clean
-
-all: RobinhoodConnectorTest
-
-TEST_SRC := RobinhoodConnectorTest.cpp \
-            RobinhoodConnector.cpp
-
-RobinhoodConnectorTest: $(TEST_SRC)
-	$(CXX) $(CXXFLAGS) $^ -o $@
+appCore: $(CORE_APP_SRC)
+	g++ -o appCore $(CORE_APP_SRC)
 
 clean:
-	rm -f RobinhoodConnectorTest
+	rm -f appCore
