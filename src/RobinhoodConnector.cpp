@@ -18,6 +18,18 @@ RobinhoodConnector::~RobinhoodConnector() {
 }
 
 std::string RobinhoodConnector::getOrders() {
+    return signedGet("/api/v1/crypto/trading/orders/");
+}
+
+std::string RobinhoodConnector::getAccounts() {
+    return signedGet("/api/v1/crypto/trading/accounts/");
+}
+
+std::string RobinhoodConnector::getHoldings(){
+    return signedGet("/api/v1/crypto/trading/holdings/");
+}
+
+std::string RobinhoodConnector::signedGet(const std::string& path) {
     const char* apiKey = apiKey_.c_str();
     const char* encodedSeed = privateKey_.c_str();
     if (!apiKey || !encodedSeed) {
@@ -41,7 +53,6 @@ std::string RobinhoodConnector::getOrders() {
     crypto_sign_seed_keypair(publicKey, secretKey, seed);
     sodium_memzero(seed, sizeof(seed));
 
-    const std::string path = "/api/v1/crypto/trading/orders/";
     const std::string timestamp = std::to_string(std::time(nullptr));
     const std::string message = std::string(apiKey) + timestamp + path + "GET";
 
@@ -75,6 +86,7 @@ std::string RobinhoodConnector::getOrders() {
     addHeader(std::string("x-api-key: ") + apiKey);
     addHeader("x-timestamp: " + timestamp);
     addHeader(std::string("x-signature: ") + encodedSignature);
+    addHeader("Content-Type: application/json; charset=utf-8");
 
     std::string response;
     const std::string url = "https://trading.robinhood.com" + path;
