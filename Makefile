@@ -1,3 +1,2 @@
 
-main:
-	$(MAKE) -C src main
+# Simple Makefile for Ride_The_Wave

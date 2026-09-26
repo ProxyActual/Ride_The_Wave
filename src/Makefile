@@ -1,4 +1,15 @@
+ CXX ?= g++
+CXXFLAGS ?= -std=c++17 -Wall -Wextra
 
-main: main.cpp Investment.cpp
-	g++ main.cpp Investment.cpp -o main
+.PHONY: all RobinhoodConnectorTest clean
 
+all: RobinhoodConnectorTest
+
+TEST_SRC := RobinhoodConnectorTest.cpp \
+            RobinhoodConnector.cpp
+
+RobinhoodConnectorTest: $(TEST_SRC)
+	$(CXX) $(CXXFLAGS) $^ -o $@
+
+clean:
+	rm -f RobinhoodConnectorTest
