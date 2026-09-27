@@ -8,6 +8,25 @@
 #include <stdexcept>
 #include <string>
 #include <cstring>
+#include <sstream>
+#include <chrono>
+
+namespace {
+std::string quoteJson(const std::string& value) {
+    std::string quoted = "\"";
+    for (const char character : value) {
+        if (character == '\\' || character == '"') {
+            quoted += '\\';
+        }
+        quoted += character;
+    }
+    return quoted + "\"";
+}
+
+std::string orderSide(const bool isBuy) {
+    return isBuy ? "buy" : "sell";
+}
+}
 
 RobinhoodConnector::RobinhoodConnector(std::string apiKey, std::string privateKey) {
     apiKey_ = apiKey;
@@ -29,7 +48,17 @@ std::string RobinhoodConnector::getHoldings(){
     return signedGet("/api/v1/crypto/trading/holdings/");
 }
 
+std::string RobinhoodConnector::postOrder(const std::string& orderJson) {
+    return signedRequest("/api/v1/crypto/trading/orders/", "POST", orderJson);
+}
+
 std::string RobinhoodConnector::signedGet(const std::string& path) {
+    return signedRequest(path, "GET", "");
+}
+
+std::string RobinhoodConnector::signedRequest(const std::string& path,
+                                              const std::string& method,
+                                              const std::string& body) {
     const char* apiKey = apiKey_.c_str();
     const char* encodedSeed = privateKey_.c_str();
     if (!apiKey || !encodedSeed) {
@@ -54,7 +83,7 @@ std::string RobinhoodConnector::signedGet(const std::string& path) {
     sodium_memzero(seed, sizeof(seed));
 
     const std::string timestamp = std::to_string(std::time(nullptr));
-    const std::string message = std::string(apiKey) + timestamp + path + "GET";
+    const std::string message = std::string(apiKey) + timestamp + path + method + body;
 
     unsigned char signature[crypto_sign_BYTES];
     crypto_sign_detached(signature, nullptr,
@@ -91,6 +120,11 @@ std::string RobinhoodConnector::signedGet(const std::string& path) {
     std::string response;
     const std::string url = "https://trading.robinhood.com" + path;
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, method.c_str());
+    if (!body.empty()) {
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, body.size());
+    }
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION,
@@ -108,8 +142,98 @@ std::string RobinhoodConnector::signedGet(const std::string& path) {
     curl_easy_cleanup(curl);
 
     if (result != CURLE_OK || status < 200 || status >= 300) {
-        throw std::runtime_error("Robinhood orders request failed (HTTP " +
+        throw std::runtime_error("Robinhood request failed (HTTP " +
                                  std::to_string(status) + "): " + response);
     }
     return response;
+}
+
+std::string RobinhoodConnector::makeClientOrderId() {
+    if (sodium_init() < 0) {
+        throw std::runtime_error("libsodium initialization failed");
+    }
+
+    unsigned char bytes[16];
+    randombytes_buf(bytes, sizeof(bytes));
+    bytes[6] = static_cast<unsigned char>((bytes[6] & 0x0f) | 0x40);
+    bytes[8] = static_cast<unsigned char>((bytes[8] & 0x3f) | 0x80);
+
+    const char* hexadecimal = "0123456789abcdef";
+    std::string clientOrderId;
+    clientOrderId.reserve(36);
+    for (size_t index = 0; index < sizeof(bytes); ++index) {
+        if (index == 4 || index == 6 || index == 8 || index == 10) {
+            clientOrderId += '-';
+        }
+        clientOrderId += hexadecimal[(bytes[index] >> 4) & 0x0f];
+        clientOrderId += hexadecimal[bytes[index] & 0x0f];
+    }
+    return clientOrderId;
+}
+
+std::string RobinhoodConnector::makeMarketOrderJson(const std::string& clientOrderId,
+                                                    const bool isBuy,
+                                                    const std::string& symbol,
+                                                    const float& assetQuantity) {
+    return "{"
+        "\"client_order_id\":" + quoteJson(clientOrderId) + ","
+        "\"side\":" + quoteJson(orderSide(isBuy)) + ","
+        "\"symbol\":" + quoteJson(symbol) + ","
+        "\"type\":\"market\","
+        "\"market_order_config\":{\"asset_quantity\":" +
+        std::to_string(assetQuantity) +
+        "}}";
+}
+
+std::string RobinhoodConnector::makeLimitOrderJson(const std::string& clientOrderId,
+                              const bool isBuy,
+                              const std::string& symbol,
+                              const float& assetQuantity,
+                              const float& limitPrice,
+                              const std::string& timeInForce) {
+    return "{"
+        "\"client_order_id\":" + quoteJson(clientOrderId) + ","
+        "\"side\":" + quoteJson(orderSide(isBuy)) + ","
+        "\"symbol\":" + quoteJson(symbol) + ","
+        "\"type\":\"limit\","
+        "\"limit_order_config\":{" 
+        "\"asset_quantity\":" + std::to_string(assetQuantity) + ","
+        "\"limit_price\":" + std::to_string(limitPrice) + ","
+        "\"time_in_force\":" + quoteJson(timeInForce) + "}}";
+}
+
+std::string RobinhoodConnector::makeStopLossOrderJson(const std::string& clientOrderId,
+                                 const bool isBuy,
+                                 const std::string& symbol,
+                                 const float& assetQuantity,
+                                 const float& stopPrice,
+                                 const std::string& timeInForce) {
+    return "{"
+        "\"client_order_id\":" + quoteJson(clientOrderId) + ","
+        "\"side\":" + quoteJson(orderSide(isBuy)) + ","
+        "\"symbol\":" + quoteJson(symbol) + ","
+        "\"type\":\"stop_loss\","
+        "\"stop_loss_order_config\":{"
+        "\"asset_quantity\":" + std::to_string(assetQuantity) + ","
+        "\"stop_price\":" + std::to_string(stopPrice) + ","
+        "\"time_in_force\":" + quoteJson(timeInForce) + "}}";
+}
+
+std::string RobinhoodConnector::makeStopLimitOrderJson(const std::string& clientOrderId,
+                                  const bool isBuy,
+                                  const std::string& symbol,
+                                  const float& assetQuantity,
+                                  const float& limitPrice,
+                                  const float& stopPrice,
+                                  const std::string& timeInForce) {
+    return "{"
+        "\"client_order_id\":" + quoteJson(clientOrderId) + ","
+        "\"side\":" + quoteJson(orderSide(isBuy)) + ","
+        "\"symbol\":" + quoteJson(symbol) + ","
+        "\"type\":\"stop_limit\","
+        "\"stop_limit_order_config\":{"
+        "\"asset_quantity\":" + std::to_string(assetQuantity) + ","
+        "\"limit_price\":" + std::to_string(limitPrice) + ","
+        "\"stop_price\":" + std::to_string(stopPrice) + ","
+        "\"time_in_force\":" + quoteJson(timeInForce) + "}}";
 }
