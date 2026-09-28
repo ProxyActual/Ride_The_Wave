@@ -5,12 +5,16 @@
 
 class RobinhoodConnector {
 public:
+
     RobinhoodConnector(std::string apiKey, std::string privateKey);
     ~RobinhoodConnector();
 
     std::string getOrders();
     std::string getAccounts();
     std::string getHoldings();
+    std::string getMarketValue(const std::string& symbol,
+                               const std::string& side,
+                               const std::string& quantity);
     std::string postOrder(const std::string& orderJson);
 
     std::string makeClientOrderId();

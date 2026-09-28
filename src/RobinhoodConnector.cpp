@@ -48,6 +48,21 @@ std::string RobinhoodConnector::getHoldings(){
     return signedGet("/api/v1/crypto/trading/holdings/");
 }
 
+std::string RobinhoodConnector::getMarketValue(const std::string& symbol,
+                                               const std::string& side,
+                                               const std::string& quantity) {
+    if (symbol.empty() || quantity.empty()) {
+        throw std::invalid_argument("Market value requires a symbol and quantity");
+    }
+    if (side != "bid" && side != "ask" && side != "both") {
+        throw std::invalid_argument("Market value side must be bid, ask, or both");
+    }
+
+    const std::string path = "/api/v1/crypto/marketdata/estimated_price/?symbol=" +
+                             symbol + "&side=" + side + "&quantity=" + quantity;
+    return signedGet(path);
+}
+
 std::string RobinhoodConnector::postOrder(const std::string& orderJson) {
     return signedRequest("/api/v1/crypto/trading/orders/", "POST", orderJson);
 }
