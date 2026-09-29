@@ -31,22 +31,14 @@ int main(){
     RobinhoodConnector robinhoodConnector(configManager.localConfig_.api_key, configManager.localConfig_.private_key);
     
     try {
-        for (const auto& order : robinhoodConnector.getOrders()) {
-            std::cout << order.createdAt << "  " << order.symbol << "  " << order.side
-                      << "  " << order.type << "  " << order.state
-                      << "  qty=" << order.filledAssetQuantity
-                      << "  avg=" << order.averagePrice << std::endl;
-        }
+         for (const auto& account : robinhoodConnector.getAccounts()) {
+             std::cout << "Account Number: " << account.account_number
+                       << "  Status: " << account.status
+                       << "  Buying Power Currency: " << account.buying_power_currency
+                       << "  Buying Power: " << account.buying_power << std::endl;
+         }
     } catch (const std::exception& e) {
         std::cerr << "Error fetching Robinhood orders: " << e.what() << std::endl;
     }
-
-
-
-    } catch (const std::exception& e) {
-        std::cerr << "Error fetching Robinhood orders: " << e.what() << std::endl;
-    }
-
-    
 
 }

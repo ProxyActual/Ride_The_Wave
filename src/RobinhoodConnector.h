@@ -21,11 +21,18 @@ public:
         std::string updatedAt;
     };
 
+    struct Account {
+        float account_number = 0.0;
+        std::string status;
+        std::string buying_power_currency;
+        float buying_power = 0.0;
+    };
+
     RobinhoodConnector(std::string apiKey, std::string privateKey);
     ~RobinhoodConnector();
 
     std::vector<Order> getOrders();
-    std::string getAccounts();
+    std::vector<Account> getAccounts();
     std::string getHoldings();
     std::string getMarketValue(const std::string& symbol,
                                const std::string& side,
