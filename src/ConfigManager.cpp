@@ -11,8 +11,13 @@ std::map<std::string, std::string> ConfigManager::getSettings() const {
     return settings;
 }
 
-void ConfigManager::loadSettings(const std::string& filename) {
+bool ConfigManager::loadSettings(const std::string& filename) {
     std::ifstream configFile(filename);
+    if (!configFile) {
+        return false;
+    }
+
+    settings.clear();
     std::string line;
     while (std::getline(configFile, line)) {
         std::istringstream iss(line);
@@ -22,9 +27,16 @@ void ConfigManager::loadSettings(const std::string& filename) {
         }
     }
 
-    localConfig_.api_key = settings["api_key"];
+    const auto apiKey = settings.find("api_key");
+    if (apiKey == settings.end() || apiKey->second.empty()) {
+        return false;
+    }
+
+    localConfig_.api_key = apiKey->second;
     localConfig_.public_key = settings["public_key"];
     localConfig_.private_key = settings["private_key"];
+
+    return true;
 }
 
 void ConfigManager::saveSettings(const std::string& filename) {
