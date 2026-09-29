@@ -1,15 +1,30 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 
 class RobinhoodConnector {
 public:
 
+    struct Order {
+        std::string id;
+        std::string clientOrderId;
+        std::string accountNumber;
+        std::string symbol;
+        std::string side;
+        std::string type;
+        std::string state;
+        double averagePrice = 0.0;
+        double filledAssetQuantity = 0.0;
+        std::string createdAt;
+        std::string updatedAt;
+    };
+
     RobinhoodConnector(std::string apiKey, std::string privateKey);
     ~RobinhoodConnector();
 
-    std::string getOrders();
+    std::vector<Order> getOrders();
     std::string getAccounts();
     std::string getHoldings();
     std::string getMarketValue(const std::string& symbol,
@@ -50,4 +65,5 @@ private:
     std::string signedRequest(const std::string& path,
                               const std::string& method,
                               const std::string& body);
+
 };

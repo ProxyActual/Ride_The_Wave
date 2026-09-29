@@ -1,17 +1,44 @@
 #include "RobinhoodConnector.h"
 
 #include <curl/curl.h>
+#include <nlohmann/json.hpp>
 #include <sodium.h>
 
 #include <cstdlib>
 #include <ctime>
 #include <stdexcept>
+#include <iostream>
 #include <string>
 #include <cstring>
 #include <sstream>
 #include <chrono>
 
 namespace {
+using json = nlohmann::json;
+
+std::string getString(const json& object, const char* key) {
+    const auto it = object.find(key);
+    return (it != object.end() && it->is_string()) ? it->get<std::string>() : "";
+}
+
+// Robinhood returns some numeric fields as strings, so accept either form.
+double getNumber(const json& object, const char* key) {
+    const auto it = object.find(key);
+    if (it == object.end() || it->is_null()) {
+        return 0.0;
+    }
+    if (it->is_number()) {
+        return it->get<double>();
+    }
+    if (it->is_string()) {
+        try {
+            return std::stod(it->get<std::string>());
+        } catch (const std::exception&) {
+        }
+    }
+    return 0.0;
+}
+
 std::string quoteJson(const std::string& value) {
     std::string quoted = "\"";
     for (const char character : value) {
@@ -36,8 +63,26 @@ RobinhoodConnector::RobinhoodConnector(std::string apiKey, std::string privateKe
 RobinhoodConnector::~RobinhoodConnector() {
 }
 
-std::string RobinhoodConnector::getOrders() {
-    return signedGet("/api/v1/crypto/trading/orders/");
+std::vector<RobinhoodConnector::Order> RobinhoodConnector::getOrders() {
+    const json response = json::parse(signedGet("/api/v1/crypto/trading/orders/"));
+
+    std::vector<Order> orders;
+    for (const json& item : response.value("results", json::array())) {
+        Order order;
+        order.id = getString(item, "id");
+        order.clientOrderId = getString(item, "client_order_id");
+        order.accountNumber = getString(item, "account_number");
+        order.symbol = getString(item, "symbol");
+        order.side = getString(item, "side");
+        order.type = getString(item, "type");
+        order.state = getString(item, "state");
+        order.averagePrice = getNumber(item, "average_price");
+        order.filledAssetQuantity = getNumber(item, "filled_asset_quantity");
+        order.createdAt = getString(item, "created_at");
+        order.updatedAt = getString(item, "updated_at");
+        orders.push_back(order);
+    }
+    return orders;
 }
 
 std::string RobinhoodConnector::getAccounts() {
