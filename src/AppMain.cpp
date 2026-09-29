@@ -31,11 +31,10 @@ int main(){
     RobinhoodConnector robinhoodConnector(configManager.localConfig_.api_key, configManager.localConfig_.private_key);
     
     try {
-         for (const auto& account : robinhoodConnector.getAccounts()) {
-             std::cout << "Account Number: " << account.account_number
-                       << "  Status: " << account.status
-                       << "  Buying Power Currency: " << account.buying_power_currency
-                       << "  Buying Power: " << account.buying_power << std::endl;
+         for (const auto& marketValue : robinhoodConnector.getMarketValue("BTC-USD", "both", "0.1,20")) {
+             std::cout << marketValue.symbol << "  " << marketValue.price << "  " << marketValue.quantity
+                       << "  " << marketValue.side << "  " << marketValue.bidInclusiveOfSellSpread
+                       << "  " << marketValue.sellSpread << "  " << marketValue.timestamp << std::endl;
          }
     } catch (const std::exception& e) {
         std::cerr << "Error fetching Robinhood orders: " << e.what() << std::endl;

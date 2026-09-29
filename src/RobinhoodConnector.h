@@ -28,13 +28,23 @@ public:
         float buying_power = 0.0;
     };
 
+    struct MarketValue {
+        std::string symbol;
+        double price = 0.0;
+        double quantity = 0.0;
+        std::string side;
+        double bidInclusiveOfSellSpread = 0.0;
+        double sellSpread = 0.0;
+        std::string timestamp;
+    };
+
     RobinhoodConnector(std::string apiKey, std::string privateKey);
     ~RobinhoodConnector();
 
     std::vector<Order> getOrders();
     std::vector<Account> getAccounts();
     std::string getHoldings();
-    std::string getMarketValue(const std::string& symbol,
+    std::vector<MarketValue> getMarketValue(const std::string& symbol,
                                const std::string& side,
                                const std::string& quantity);
     std::string postOrder(const std::string& orderJson);

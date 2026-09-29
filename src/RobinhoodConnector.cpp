@@ -102,7 +102,7 @@ std::string RobinhoodConnector::getHoldings(){
     return signedGet("/api/v1/crypto/trading/holdings/");
 }
 
-std::string RobinhoodConnector::getMarketValue(const std::string& symbol,
+std::vector<RobinhoodConnector::MarketValue> RobinhoodConnector::getMarketValue(const std::string& symbol,
                                                const std::string& side,
                                                const std::string& quantity) {
     if (symbol.empty() || quantity.empty()) {
@@ -114,7 +114,20 @@ std::string RobinhoodConnector::getMarketValue(const std::string& symbol,
 
     const std::string path = "/api/v1/crypto/marketdata/estimated_price/?symbol=" +
                              symbol + "&side=" + side + "&quantity=" + quantity;
-    return signedGet(path);
+    const json response = json::parse(signedGet(path));
+    std::vector<MarketValue> marketValues;
+    for (const json& item : response.value("results", json::array())) {
+        MarketValue marketValue;
+        marketValue.symbol = getString(item, "symbol");
+        marketValue.price = getNumber(item, "price");
+        marketValue.quantity = getNumber(item, "quantity");
+        marketValue.side = getString(item, "side");
+        marketValue.bidInclusiveOfSellSpread = getNumber(item, "bid_inclusive_of_sell_spread");
+        marketValue.sellSpread = getNumber(item, "sell_spread");
+        marketValue.timestamp = getString(item, "timestamp");
+        marketValues.push_back(marketValue);
+    }
+    return marketValues;
 }
 
 std::string RobinhoodConnector::postOrder(const std::string& orderJson) {
