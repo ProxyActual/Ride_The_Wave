@@ -98,8 +98,18 @@ std::vector<RobinhoodConnector::Account> RobinhoodConnector::getAccounts() {
     return accounts;
 }
 
-std::string RobinhoodConnector::getHoldings(){
-    return signedGet("/api/v1/crypto/trading/holdings/");
+std::vector<RobinhoodConnector::Holding> RobinhoodConnector::getHoldings(){
+    const json response = json::parse(signedGet("/api/v1/crypto/trading/holdings/"));
+    std::vector<Holding> holdings;
+    for (const json& item : response.value("results", json::array())) {
+        Holding holding;
+        holding.account_number = getString(item, "account_number");
+        holding.asset_code = getString(item, "asset_code");
+        holding.total_quantity = getNumber(item, "total_quantity");
+        holding.quantity_available_for_trading = getNumber(item, "quantity_available_for_trading");
+        holdings.push_back(holding);
+    }
+    return holdings;
 }
 
 std::vector<RobinhoodConnector::MarketValue> RobinhoodConnector::getMarketValue(const std::string& symbol,

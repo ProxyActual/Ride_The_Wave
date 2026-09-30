@@ -38,12 +38,20 @@ public:
         std::string timestamp;
     };
 
+    struct Holding {
+        std::string account_number;
+        std::string asset_code;
+        double total_quantity = 0.0;
+        double quantity_available_for_trading = 0.0;
+    };
+
     RobinhoodConnector(std::string apiKey, std::string privateKey);
     ~RobinhoodConnector();
 
     std::vector<Order> getOrders();
     std::vector<Account> getAccounts();
-    std::string getHoldings();
+    std::vector<Holding> getHoldings();
+
     std::vector<MarketValue> getMarketValue(const std::string& symbol,
                                const std::string& side,
                                const std::string& quantity);
