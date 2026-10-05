@@ -12,6 +12,8 @@
 #include <cstring>
 #include <sstream>
 #include <chrono>
+#include <iomanip>
+#include <limits>
 
 namespace {
 using json = nlohmann::json;
@@ -266,22 +268,24 @@ std::string RobinhoodConnector::makeClientOrderId() {
 std::string RobinhoodConnector::makeMarketOrderJson(const std::string& clientOrderId,
                                                     const bool isBuy,
                                                     const std::string& symbol,
-                                                    const float& assetQuantity) {
+                                                    const double& assetQuantity) {
+    std::ostringstream quantity;
+    quantity << std::setprecision(std::numeric_limits<double>::max_digits10)
+             << assetQuantity;
     return "{"
         "\"client_order_id\":" + quoteJson(clientOrderId) + ","
         "\"side\":" + quoteJson(orderSide(isBuy)) + ","
         "\"symbol\":" + quoteJson(symbol) + ","
         "\"type\":\"market\","
-        "\"market_order_config\":{\"asset_quantity\":" +
-        std::to_string(assetQuantity) +
+        "\"market_order_config\":{\"asset_quantity\":" + quantity.str() +
         "}}";
 }
 
 std::string RobinhoodConnector::makeLimitOrderJson(const std::string& clientOrderId,
                               const bool isBuy,
                               const std::string& symbol,
-                              const float& assetQuantity,
-                              const float& limitPrice,
+                              const double& assetQuantity,
+                              const double& limitPrice,
                               const std::string& timeInForce) {
     return "{"
         "\"client_order_id\":" + quoteJson(clientOrderId) + ","
@@ -297,8 +301,8 @@ std::string RobinhoodConnector::makeLimitOrderJson(const std::string& clientOrde
 std::string RobinhoodConnector::makeStopLossOrderJson(const std::string& clientOrderId,
                                  const bool isBuy,
                                  const std::string& symbol,
-                                 const float& assetQuantity,
-                                 const float& stopPrice,
+                                 const double& assetQuantity,
+                                 const double& stopPrice,
                                  const std::string& timeInForce) {
     return "{"
         "\"client_order_id\":" + quoteJson(clientOrderId) + ","
@@ -314,9 +318,9 @@ std::string RobinhoodConnector::makeStopLossOrderJson(const std::string& clientO
 std::string RobinhoodConnector::makeStopLimitOrderJson(const std::string& clientOrderId,
                                   const bool isBuy,
                                   const std::string& symbol,
-                                  const float& assetQuantity,
-                                  const float& limitPrice,
-                                  const float& stopPrice,
+                                  const double& assetQuantity,
+                                  const double& limitPrice,
+                                  const double& stopPrice,
                                   const std::string& timeInForce) {
     return "{"
         "\"client_order_id\":" + quoteJson(clientOrderId) + ","

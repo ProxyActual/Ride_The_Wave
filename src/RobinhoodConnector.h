@@ -22,10 +22,10 @@ public:
     };
 
     struct Account {
-        float account_number = 0.0;
+        double account_number = 0.0;
         std::string status;
         std::string buying_power_currency;
-        float buying_power = 0.0;
+        double buying_power = 0.0;
     };
 
     struct MarketValue {
@@ -62,25 +62,25 @@ public:
     std::string makeMarketOrderJson(const std::string& clientOrderId, // Unique identifier for the order
                                     const bool isBuy,
                                     const std::string& symbol,
-                                    const float& assetQuantity);
+                                    const double& assetQuantity);
     std::string makeLimitOrderJson(const std::string& clientOrderId,
                                    const bool isBuy,
                                    const std::string& symbol,
-                                   const float& assetQuantity,
-                                   const float& limitPrice,
+                                   const double& assetQuantity,
+                                   const double& limitPrice,
                                    const std::string& timeInForce);
     std::string makeStopLossOrderJson(const std::string& clientOrderId,
                                       const bool isBuy,
                                       const std::string& symbol,
-                                      const float& assetQuantity,
-                                      const float& stopPrice,
+                                      const double& assetQuantity,
+                                      const double& stopPrice,
                                       const std::string& timeInForce);
     std::string makeStopLimitOrderJson(const std::string& clientOrderId,
                                        const bool isBuy,
                                        const std::string& symbol,
-                                       const float& assetQuantity,
-                                       const float& limitPrice,
-                                       const float& stopPrice,
+                                       const double& assetQuantity,
+                                       const double& limitPrice,
+                                       const double& stopPrice,
                                        const std::string& timeInForce);
 
 private:

@@ -5,7 +5,28 @@
 #include <thread>
 #include <chrono>
 #include "ConfigManager.h"
+#include "CryptoHolding.h"
 #include "RobinhoodConnector.h"
+
+static constexpr int REFRESH_INTERVAL_SECONDS = 5 * 60;
+
+std::vector<CryptoHolding> getCryptoHoldings(RobinhoodConnector& robinhoodConnector){
+    std::vector<CryptoHolding> cryptoHoldings;
+    auto holdings = robinhoodConnector.getHoldings();
+    auto orders = robinhoodConnector.getOrders();
+    for(auto holding : holdings) {
+        double originalCostUSD = 0.0;
+        for (const auto& order : orders) {
+            if (order.symbol == holding.asset_code + "-USD" && order.side == "buy" && order.filledAssetQuantity == holding.total_quantity) {
+                originalCostUSD = order.averagePrice * order.filledAssetQuantity;
+                break;
+            }
+        }
+
+        cryptoHoldings.emplace_back(holding.asset_code, holding.quantity_available_for_trading, originalCostUSD, robinhoodConnector);
+    }
+    return cryptoHoldings;
+}
 
 int main(){
     std::cout << "Welcome to Ride The Wave!" << std::endl;
@@ -32,116 +53,41 @@ int main(){
 
     RobinhoodConnector robinhoodConnector(configManager.localConfig_.api_key, configManager.localConfig_.private_key);
     
-    try {
-        auto orders = robinhoodConnector.getOrders();
+    std::vector<CryptoHolding> cryptoHoldings = getCryptoHoldings(robinhoodConnector);
 
-        auto holdings = robinhoodConnector.getHoldings();
-
-        std::map<std::string, float> profitHighs;
-
-        bool orderPlaced = false;
-
-        while(true){
-
-            for (const auto& holding: holdings) {
-                std::string modifiedCode = holding.asset_code + "-USD";
-                robinhoodConnector.getMarketValue(modifiedCode, "both", std::to_string(holding.total_quantity));
-
-                float usdMarketValue = 0.0f;
-                for (const auto& marketValue : robinhoodConnector.getMarketValue(modifiedCode, "both", std::to_string(holding.total_quantity))) {
-                    if (marketValue.side == "ask") {
-                        usdMarketValue += marketValue.price * marketValue.quantity;
-                    }
-                }
-                std::cout << holding.asset_code << " : " << holding.total_quantity  << " (" << usdMarketValue << " USD)" << std::endl;
-                
-
-
-                bool orderFound = false;
-                for (const auto& order : orders) {
-
-                    if (order.symbol == modifiedCode) {
-                        if(order.side == "buy" && order.filledAssetQuantity == holding.total_quantity) {
-                            float costUSD = order.averagePrice * order.filledAssetQuantity;
-                            float profitUSD = usdMarketValue - costUSD;
-                            std::cout << "\tCurrent return :    ";
-                            if(profitUSD < 0){
-                                std::cout << "\033[31m";
-                            } else {
-                                std::cout << "\033[32m";
-                            }
-                            std::cout << profitUSD << " USD" << std::endl;
-                            std::cout << "\033[0m";
-                            orderFound = true;
-
-                            if(profitHighs.find(modifiedCode) == profitHighs.end() || profitUSD > profitHighs[modifiedCode]) {
-                                profitHighs[modifiedCode] = profitUSD;
-                            }
-
-                            if(profitHighs.find(modifiedCode) != profitHighs.end()) {
-                                std::cout << "\tHighest return :    ";
-                                if(profitHighs[modifiedCode] < 0){
-                                    std::cout << "\033[31m";
-                                } else {
-                                    std::cout << "\033[32m";
-                                }
-                                std::cout << profitHighs[modifiedCode] << " USD" << std::endl;
-                                std::cout << "\033[0m";
-                                float amountBelowHigh = profitUSD - profitHighs[modifiedCode];
-                                std::cout << "\tAmount Below High : ";
-                                if(amountBelowHigh < -0.02){
-                                    std::cout << "\033[31m";
-                                } else {
-                                    std::cout << "\033[32m";
-                                }
-                                std::cout << amountBelowHigh << " USD" << std::endl;
-                                std::cout << "\033[0m";
-
-                                if(amountBelowHigh < -0.01 && profitUSD > .02){
-
-                                    robinhoodConnector.makeMarketOrderJson(
-                                        robinhoodConnector.makeClientOrderId(),
-                                        false,
-                                        modifiedCode,
-                                        holding.quantity_available_for_trading
-                                    );
-
-                                    orderPlaced = true;
-                                }
-
-                            }
-
-                        }
-                    }
-                }
-                if (!orderFound) {
-                    std::cout << "\tNo matching order found for this holding." << std::endl;
-                }
-            }
-
-            if(orderPlaced) {
-                std::cout << "\tOrder placed, refreshing orders and holdings..." << std::endl;
-                std::this_thread::sleep_for(std::chrono::seconds(15));
-                orders = robinhoodConnector.getOrders();
-                holdings = robinhoodConnector.getHoldings();
-                orderPlaced = false;
-            }
-
-
-            for (int i = 0; i < 2 * 60; ++i) {
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-                int timeLeft = 2 * 60 - i;
-                std::cout << "\033[2K\r";
-                std::cout.flush();
-                std::cout << "Time left: " << timeLeft / 60 << " minutes " << timeLeft % 60 << " seconds";
-                std::cout.flush();
-
-            }
-            std::cout << std::endl;
-        }
-         
-    } catch (const std::exception& e) {
-        std::cerr << "Error fetching Robinhood orders: " << e.what() << std::endl;
+    for (const auto& cryptoHolding : cryptoHoldings) {
+        std::cout << cryptoHolding.getAssetCode() << " : " << cryptoHolding.getOriginalCostUSD() << std::endl;
     }
 
+    std::cout << "\n\n";
+
+    while(true){
+        bool anyUpdates = false;
+
+        std::string soldText;
+        for (CryptoHolding& cryptoHolding : cryptoHoldings) {
+
+            std::cout << cryptoHolding.getColorTextSummary() << std::endl;
+            if(cryptoHolding.needsUpdate()){
+                cryptoHolding.update();
+                //std::cout << cryptoHolding.getAssetCode() << " updated. Current profit: " << cryptoHolding.getCurrentProfit() << std::endl;
+
+                if(cryptoHolding.getCurrentProfit() > 0.02 && cryptoHolding.getHighProfit() - cryptoHolding.getCurrentProfit() > 0.01){
+                    anyUpdates = true;
+                    soldText += "Selling " + cryptoHolding.getAssetCode() + " with profit: " + std::to_string(cryptoHolding.getCurrentProfit()) + 
+                    "\n\t" + cryptoHolding.sell() + "\n";
+                }
+            }
+
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        for (CryptoHolding& cryptoHolding : cryptoHoldings) {
+            std::cout << "\033[1A\033[2K";
+        }
+        if(anyUpdates){
+            std::cout << "Some holdings were sold." << std::endl;
+            std::cout << soldText;
+            cryptoHoldings = getCryptoHoldings(robinhoodConnector);
+        }
+    }
 }
