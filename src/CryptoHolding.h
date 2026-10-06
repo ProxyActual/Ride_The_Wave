@@ -26,6 +26,8 @@ class CryptoHolding {
         std::string getAssetCode() const { return asset_code_; }
         double getAssetQuantity() const { return asset_quantity_; }
         double getOriginalCostUSD() const { return originalCostUSD_; }
+        double getProfitPrecent() const { return profitPrecent_; }
+        const std::vector<double>& getHistory() const { return history_; }
             
     private:
         std::vector<double> history_;
@@ -37,6 +39,7 @@ class CryptoHolding {
 
         double originalCostUSD_;
         double currentMarketValue_ {0.0};
+        double profitPrecent_ {0.0};
 
         double highMarketValueUSD_ {0.0};
 

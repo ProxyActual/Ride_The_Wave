@@ -36,6 +36,7 @@ void CryptoHolding::update() {
         history_.erase(history_.begin());
     }
     currentMarketValue_ = currentMarketValue;
+    profitPrecent_ = (currentMarketValue_ - originalCostUSD_) / originalCostUSD_ * 100.0;
 }
 
 std::string CryptoHolding::sell() {
@@ -45,7 +46,7 @@ std::string CryptoHolding::sell() {
         asset_code_ + "-USD",
         asset_quantity_
     );
-    std::cout << "Sell order: " << sellOrder << std::endl;
+    //std::cout << "Sell order: " << sellOrder << std::endl;
     return robinhoodConnector_.postOrder(sellOrder);
 }
 
@@ -78,14 +79,16 @@ std::string CryptoHolding::getColorTextSummary() {
             historyString += "=";
         }
     }
-
-    result = std::format("{:<6.6} : {} {:>7.3f} {} : {:>7.3f} : {:>7.3f} : Time {:02}:{:02} History {:50}", 
+    result = std::format("{:<6.6} : {} {:>7.3f} {} : {:>7.3f} : {:>7.3f} : {}Profit {:>7.3f}% {} : Time {:02}:{:02} History {:50}", 
         asset_code_, 
         profitColor,
         getCurrentProfit(),
         ResetColor,
         getHighProfit(),
         getHighProfit() - getCurrentProfit(),
+        profitColor,
+        profitPrecent_,
+        ResetColor,
         countDownSeconds_ / 60,
         countDownSeconds_ % 60,
         historyString
@@ -102,6 +105,9 @@ bool CryptoHolding::needsUpdate() {
     std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
     std::chrono::seconds timeout = std::chrono::minutes(5) + std::chrono::seconds(static_cast<int>(fullTimeJitter_));
 
+    if(history_.size() < 2) {
+        return true;
+    }
 
 
     if(getCurrentProfit() > 0){

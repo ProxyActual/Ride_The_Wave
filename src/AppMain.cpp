@@ -6,6 +6,7 @@
 #include <chrono>
 #include "ConfigManager.h"
 #include "CryptoHolding.h"
+#include "ConsoleUI.h"
 #include "RobinhoodConnector.h"
 
 static constexpr int REFRESH_INTERVAL_SECONDS = 5 * 60;
@@ -28,7 +29,24 @@ std::vector<CryptoHolding> getCryptoHoldings(RobinhoodConnector& robinhoodConnec
     return cryptoHoldings;
 }
 
+static const std::vector<std::vector<double>> BaseTextColors{
+    {255, 0, 0},
+    {0, 255, 0},
+    {0, 0, 255},
+    {255, 255, 0},
+    {0, 255, 255},
+    {255, 0, 255},
+    {192, 192, 192},
+    {128, 128, 128},
+    {0, 0, 0},
+    {255, 165, 0},
+    {128, 0, 128},
+    {0, 128, 0},
+    {0, 128, 128}
+};
+
 int main(){
+    static ConsoleUI consoleUI;
     std::cout << "Welcome to Ride The Wave!" << std::endl;
 
     std::cout << "Loading configuration..." << std::endl;
@@ -51,6 +69,7 @@ int main(){
 
     std::cout << "Configuration loaded successfully." << std::endl;
 
+
     RobinhoodConnector robinhoodConnector(configManager.localConfig_.api_key, configManager.localConfig_.private_key);
     
     std::vector<CryptoHolding> cryptoHoldings = getCryptoHoldings(robinhoodConnector);
@@ -61,32 +80,49 @@ int main(){
 
     std::cout << "\n\n";
 
+    std::string RedColor = "\x1b[31m";
+    std::string GreenColor = "\x1b[32m";
+    std::string ResetColor = "\x1b[0m";
+
     while(true){
         bool anyUpdates = false;
+        static constexpr bool allowSell = true;
 
         std::string soldText;
+        int color = 0;
         for (CryptoHolding& cryptoHolding : cryptoHoldings) {
-
+            consoleUI.setCursorPosition(color + 1, 1);
+            consoleUI.setColor(BaseTextColors[color % BaseTextColors.size()]);
             std::cout << cryptoHolding.getColorTextSummary() << std::endl;
             if(cryptoHolding.needsUpdate()){
                 cryptoHolding.update();
                 //std::cout << cryptoHolding.getAssetCode() << " updated. Current profit: " << cryptoHolding.getCurrentProfit() << std::endl;
-
+                if(!allowSell){
+                    continue;
+                }
                 if(cryptoHolding.getCurrentProfit() > 0.02 && cryptoHolding.getHighProfit() - cryptoHolding.getCurrentProfit() > 0.01){
                     anyUpdates = true;
-                    soldText += "Selling " + cryptoHolding.getAssetCode() + " with profit: " + std::to_string(cryptoHolding.getCurrentProfit()) + 
+                    soldText += GreenColor + "Selling " + cryptoHolding.getAssetCode() + " with profit: " + std::to_string(cryptoHolding.getCurrentProfit()) + ResetColor + 
                     "\n\t" + cryptoHolding.sell() + "\n";
                 }
-            }
 
+                if(cryptoHolding.getProfitPrecent() < -10.0){
+                    anyUpdates = true;
+                    std::string SellReturnCode = cryptoHolding.sell();
+                    soldText += RedColor + "LOSS PREVENTION: " + cryptoHolding.getAssetCode() + " with profit: " + std::to_string(cryptoHolding.getCurrentProfit()) + ResetColor + 
+                    "\n\t" + SellReturnCode + "\n";
+                }
+            }
+            consoleUI.setColor(BaseTextColors[color % BaseTextColors.size()]);
+            consoleUI.drawGraph(10, 1, 30, 150, cryptoHolding.getHistory());
+
+            color++;
         }
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        for (CryptoHolding& cryptoHolding : cryptoHoldings) {
-            std::cout << "\033[1A\033[2K";
-        }
+        consoleUI.clearScreen();
         if(anyUpdates){
             std::cout << "Some holdings were sold." << std::endl;
-            std::cout << soldText;
+            std::cout << soldText + ResetColor;
             cryptoHoldings = getCryptoHoldings(robinhoodConnector);
         }
     }
