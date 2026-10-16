@@ -1,4 +1,5 @@
 #include "ConsoleUI.h"
+#include "ConsoleWidget.h"
 
 #include <iostream>
 #include <thread>
@@ -9,16 +10,20 @@ int main() {
     
     ui.clearScreen();
 
+    ConsoleWidget widget(1, 1, 80, 24);
+
     std::string input;
 
     while (true) {
-        ui.setCursorPosition(10, 3);
-        std::cout << "Hello, World! "<< input << std::flush;
-        ui.setCursorPosition(40, 30);
-        std::cout << std::flush;
-        std::cout << "Enter input: " << std::flush;
-        input = ui.getInputs();
+        widget.update();
+        int randomWidth = rand() % 80;
+        int randomHeight = rand() % 24;
+
+        widget.putText(randomWidth, randomHeight, "Hello, World!", {255, 255, -1}, {-1, 0, 0});
+
+        widget.update();
         std::this_thread::sleep_for(std::chrono::milliseconds(250));
+        widget.clear(randomWidth, randomHeight, 13, 1);
     }
 
     return 0;

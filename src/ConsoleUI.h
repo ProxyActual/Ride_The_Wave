@@ -15,6 +15,7 @@ public:
 
     void setCursorPosition(int row, int col) {
         std::cout << "\033[" << row << ";" << col << "H";
+        std::cout.flush();
     }
 
     void setColor(const std::vector<double>& color) {

@@ -3,11 +3,13 @@ CORE_APP_SRC = AppMain.cpp \
 	RobinhoodConnector.cpp \
 	CryptoHolding.cpp \
 	ConsoleUI.cpp \
+	ConsoleWidget.cpp \
 
 CORE_APP_LIBS = -lcurl -lsodium
 
 ConsoleUITest_SRC = ConsoleUITest.cpp \
 	ConsoleUI.cpp \
+	ConsoleWidget.cpp \
 
 
 THIRD_PARTY_DIR = ../3rd_parties

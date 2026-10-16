@@ -1,4 +1,5 @@
 .PHONY: appCore
+.PHONY: consoleUITest
 
 # Build the appCore target directly from the project root.
 appCore:
