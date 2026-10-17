@@ -11,6 +11,8 @@ ConsoleUITest_SRC = ConsoleUITest.cpp \
 	ConsoleUI.cpp \
 	ConsoleWidget.cpp \
 
+HistoryTest_SRC = HistoryTest.cpp \
+	HistoryCreator.cpp \
 
 THIRD_PARTY_DIR = ../3rd_parties
 NLOHMANN_JSON_VERSION = v3.11.3
@@ -23,6 +25,9 @@ appCore: $(CORE_APP_SRC) $(NLOHMANN_JSON_HEADER)
 
 consoleUITest: $(ConsoleUITest_SRC)
 	g++ $(CXXFLAGS) -o consoleUITest $(ConsoleUITest_SRC) $(CORE_APP_LIBS)		
+
+historyTest: $(HistoryTest_SRC)
+	g++ $(CXXFLAGS) -o historyTest  $(HistoryTest_SRC) $(CORE_APP_LIBS)
 
 $(NLOHMANN_JSON_HEADER):
 	mkdir -p $(dir $@)

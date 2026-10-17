@@ -29,6 +29,8 @@ class CryptoHolding {
         double getProfitPrecent() const { return profitPrecent_; }
         const std::vector<double>& getHistory() const { return history_; }
             
+        std::string getTimeLeft() const;
+        
     private:
         std::vector<double> history_;
 

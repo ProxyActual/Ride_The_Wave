@@ -31,6 +31,11 @@ class ConsoleWidget {
 
         void clear(int x, int y, int width, int height);
 
+        int getX() const { return x_; }
+        int getY() const { return y_; }
+        int getWidth() const { return width_; }
+        int getHeight() const { return height_; }
+
     private:
         std::vector<std::vector<std::string>> buffer_{};
         std::vector<std::vector<std::string>> newBuffer_{};

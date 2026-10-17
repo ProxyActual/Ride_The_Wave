@@ -96,7 +96,14 @@ int main(){
 
     std::map<CryptoHolding*, ConsoleWidget*> TextWidgetMap;
 
-    int number = 1;
+    ConsoleWidget Title(1, 1, 150, 4);
+
+    Title.putText(0, 0, "======================================================", ConsoleWidget::WHITE, ConsoleWidget::DEFAULT);
+    Title.putText(0, 1, "||        Welcome to Ride The Wave!                 ||", ConsoleWidget::WHITE, ConsoleWidget::DEFAULT);
+    Title.putText(0, 2, "======================================================", ConsoleWidget::WHITE, ConsoleWidget::DEFAULT);
+    Title.putText(0, 3, "COIN    PROFIT", ConsoleWidget::WHITE, ConsoleWidget::DEFAULT);
+
+    int number = 5;
     for (CryptoHolding& cryptoHolding : cryptoHoldings) {
         ConsoleWidget* textWidget = new ConsoleWidget(1, number++, 150, 1);
         TextWidgetMap.insert({&cryptoHolding, textWidget});
@@ -105,10 +112,13 @@ int main(){
     std::this_thread::sleep_for(std::chrono::seconds(2));
     consoleUI.clearScreen();
 
+    Title.update();
+
     std::cout << "\n\n" << std::endl;
 
 
     while(true){
+        bool sold = false;
         for(CryptoHolding& cryptoHolding : cryptoHoldings) {
             ConsoleWidget* textWidget = TextWidgetMap[&cryptoHolding];
             //std::cout << "Updating widget for " << cryptoHolding.getAssetCode() << std::endl;
@@ -125,10 +135,32 @@ int main(){
 
             textWidget->putText(7, 0, Quantity, profitColor, ConsoleWidget::DEFAULT);
 
+            textWidget->putText(18, 0, cryptoHolding.getTimeLeft(), ConsoleWidget::WHITE, ConsoleWidget::DEFAULT);
+
+            ConsoleWidget::Color highestProfitColor = (cryptoHolding.getProfitPrecent() < 0) ? ConsoleWidget::RED : ConsoleWidget::WHITE;
+            highestProfitColor = (cryptoHolding.getProfitPrecent() > 2) ? ConsoleWidget::GREEN : highestProfitColor;
+
+            textWidget-> putText(30, 0, std::to_string(cryptoHolding.getHighMarketValueUSD()), highestProfitColor, ConsoleWidget::DEFAULT);
+
+            if(cryptoHolding.getProfitPrecent() > 0){
+                if(cryptoHolding.getHighMarketValueUSD() - cryptoHolding.getCurrentMarketValue() > 0.01){
+                    cryptoHolding.sell();
+                    sold = true;
+                }
+            }
             textWidget->update();
         }
         consoleUI.setCursorPosition(40, 0);
         
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        if(sold){
+            cryptoHoldings = getCryptoHoldings(robinhoodConnector);
+            consoleUI.clearScreen();
+            Title.forceUpdate();
+            for (CryptoHolding& cryptoHolding : cryptoHoldings) {
+                ConsoleWidget* textWidget = TextWidgetMap[&cryptoHolding];
+                textWidget->forceUpdate();
+            }
+        }
     }
 }

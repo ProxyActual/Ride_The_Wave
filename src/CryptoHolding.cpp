@@ -122,3 +122,9 @@ bool CryptoHolding::needsUpdate() {
     
     return (now - lastUpdated_) > timeout;
 }
+
+std::string CryptoHolding::getTimeLeft() const {
+    int minutes = countDownSeconds_ / 60;
+    int seconds = countDownSeconds_ % 60;
+    return std::format("{:02}:{:02}", minutes, seconds);
+}
