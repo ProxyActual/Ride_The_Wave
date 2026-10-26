@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <iostream>
 #include <stdexcept>
 
@@ -114,7 +115,25 @@ bool NetworkCopyTest() {
 		assigned.getOutputs({}).empty() && survivor.getOutputs({}).empty();
 }
 
+bool NetworkRandomWeightTest() {
+	std::srand(0);
+	Network network(1, 128);
+	network.evolve();
+	bool hasNegative = false;
+	bool hasPositive = false;
+	for (double output : network.getOutputs({1.0})) {
+		hasNegative = hasNegative || output < 0.0;
+		hasPositive = hasPositive || output > 0.0;
+	}
+	return hasNegative && hasPositive;
+}
+
 int main() {
+	if (!NetworkRandomWeightTest()) {
+		std::cerr << "Network Random Weight Test Failed" << std::endl;
+		return 1;
+	}
+	std::cout << "Network Random Weight Test Passed" << std::endl;
 	if (!NetworkCopyTest()) {
 		std::cerr << "Network Copy Test Failed" << std::endl;
 		return 1;

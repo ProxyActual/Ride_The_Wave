@@ -33,6 +33,9 @@ Build the existing test executable with:
 make -C src/NeuralNetwork neuralNetworkTest
 ```
 
+`Network::evolve()` generates connection weights in the inclusive range
+`[-1.0, 1.0]`, allowing both negative and positive contributions.
+
 Copy a network using assignment or copy construction:
 
 ```cpp

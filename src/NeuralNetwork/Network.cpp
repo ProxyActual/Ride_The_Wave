@@ -1,7 +1,9 @@
 #include "Network.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <iostream>
+#include <utility>
 #include <memory>
 #include <unordered_map>
 #include <utility>
@@ -177,7 +179,7 @@ void Network::buildRandomConnections(double connectionProbability) {
 
 	for (auto* fromNode : connectionsFrom) {
 		for (auto* toNode : connectionsTo) {
-			double weight = static_cast<double>(rand()) / RAND_MAX; // Random weight between 0 and 1
+			double weight = 2.0 * static_cast<double>(rand()) / RAND_MAX - 1.0;
 			double randomValue = static_cast<double>(rand()) / RAND_MAX; // Random value between 0 and 1
 			if (randomValue < connectionProbability) {
 				addConnection(fromNode, toNode, weight);
