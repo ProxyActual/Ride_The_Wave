@@ -1,15 +1,32 @@
-NETWORK_CORE = Node.cpp
+NETWORK_CORE = Node.cpp \
+	Network.cpp
 
-NETWORK_LIB = -lcurl 
+BUILD_DIR = build
+NETWORK_OBJECTS = $(NETWORK_CORE:%.cpp=$(BUILD_DIR)/%.o)
+NETWORK_LIBRARY = $(BUILD_DIR)/libneuralNetwork.a
+NETWORK_DEPS = $(NETWORK_OBJECTS:.o=.d)
 
 CXXFLAGS = -std=c++20
 
-neuralNetwork: $(NETWORK_CORE)
-	g++ $(CXXFLAGS) -o neuralNetwork $(NETWORK_CORE) $(NETWORK_LIB)
+.PHONY: neuralNetwork clean
 
-neuralNetworkTest: NeuralNetworkTest.cpp $(NETWORK_CORE)
-	g++ $(CXXFLAGS) -o neuralNetworkTest NeuralNetworkTest.cpp $(NETWORK_CORE) $(NETWORK_LIB)
+neuralNetwork: $(NETWORK_LIBRARY)
+
+$(NETWORK_LIBRARY): $(NETWORK_OBJECTS)
+	$(AR) rcs $@ $^
+
+$(BUILD_DIR)/%.o: %.cpp | $(BUILD_DIR)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -MMD -MP -c $< -o $@
+
+$(BUILD_DIR):
+	mkdir -p $@
+
+neuralNetworkTest: NeuralNetworkTest.cpp Node.h Network.h $(NETWORK_LIBRARY)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS) -o $@ NeuralNetworkTest.cpp $(NETWORK_LIBRARY) $(LDLIBS)
 
 clean:
 	rm -f neuralNetwork
 	rm -f neuralNetworkTest
+	rm -f $(NETWORK_OBJECTS) $(NETWORK_DEPS) $(NETWORK_LIBRARY)
+
+-include $(NETWORK_DEPS)

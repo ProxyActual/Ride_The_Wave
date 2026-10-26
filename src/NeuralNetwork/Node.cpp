@@ -1,6 +1,11 @@
 #include "Node.h"
 
+#include <iostream>
+
 Node::Node() {
+    wasCalculated_ = false;
+    connections_.clear();
+    storedValue_ = 0.0;
     wasCalculated_ = false;
 }
 
@@ -12,16 +17,20 @@ void Node::addConnection(Node* node, double weight) {
 }
 
 void Node::removeConnection(Node* node) {
-    connections_.erase(node);
+    std::cout << this << " Removing connection to node " << node << std::endl;
+    if (connections_.find(node) != connections_.end()) {
+        connections_.erase(node);
+    }
 }
 
-bool Node::hasConnection(Node* node) {
+bool Node::isConnectedTo(Node* node) {
     if(node == this){
+
         return true;
     }
     for (auto& connection : connections_) {
         Node* nodePtr = connection.first;
-        if (nodePtr->hasConnection(node)) {
+        if (nodePtr->isConnectedTo(node)) {
             return true;
         }
     }
@@ -29,10 +38,13 @@ bool Node::hasConnection(Node* node) {
 }
 
 double Node::getValue() {
+    std::cout << "Calculating value for node " << this << std::endl;
     if (!wasCalculated_) {
+        std::cout << "\tNot Calculated" << std::endl;
         storedValue_ = 0.0;
         for (auto& connection : connections_) {
             storedValue_ += connection.second * connection.first->getValue();
+            std::cout << "\tNew Value: " << storedValue_ << std::endl;
         }
         setValue(storedValue_);
     }
