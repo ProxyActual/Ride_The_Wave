@@ -37,13 +37,10 @@ bool Node::isConnectedTo(Node* node) {
 }
 
 double Node::getValue() {
-    std::cout << "Calculating value for node " << this << std::endl;
     if (!wasCalculated_) {
-        std::cout << "\tNot Calculated" << std::endl;
         storedValue_ = 0.0;
         for (auto& connection : connections_) {
             storedValue_ += connection.second * connection.first->getValue();
-            std::cout << "\tNew Value: " << storedValue_ << std::endl;
         }
         setValue(storedValue_);
     }

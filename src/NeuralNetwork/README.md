@@ -33,6 +33,22 @@ Build the existing test executable with:
 make -C src/NeuralNetwork neuralNetworkTest
 ```
 
+Copy a network using assignment or copy construction:
+
+```cpp
+Network original(2, 1);
+Network copied(original);
+Network assigned(3, 2);
+assigned = original;
+```
+
+Both operations make independent deep copies of all layers, node values,
+calculation flags, connections, and weights. Changing or destroying the original
+does not affect its copies. Assignment replaces the destination's previous
+contents and supports self-assignment. All connection endpoints must belong to
+the network; copying a connection to an external node throws `std::out_of_range`
+and leaves the assignment destination unchanged.
+
 The test target links against the same static library. Header changes trigger
 recompilation of dependent objects. `make -C src/NeuralNetwork clean` removes
 the generated objects, dependency files, archive, and test executable.

@@ -2,6 +2,9 @@
 
 #include <algorithm>
 #include <iostream>
+#include <memory>
+#include <unordered_map>
+#include <utility>
 
 Network::Network(int inputCount, int outputCount)
 {
@@ -16,6 +19,48 @@ Network::Network(int inputCount, int outputCount)
 	for(int i = 0; i < outputCount_; ++i) {
 		layers_[OUTPUT].push_back(new Node());
 	}
+}
+
+Network::Network(const Network& other) : Network(0, 0) {
+	Network copy(0, 0);
+	copy.inputCount_ = other.inputCount_;
+	copy.outputCount_ = other.outputCount_;
+	std::unordered_map<const Node*, Node*> nodes;
+
+	for (size_t i = 0; i < other.layers_.size(); ++i) {
+		for (const auto* node : other.layers_[i]) {
+			auto clonedNode = std::make_unique<Node>(*node);
+			copy.layers_[i].push_back(clonedNode.get());
+			Node* cloned = clonedNode.release();
+			nodes.emplace(node, cloned);
+		}
+	}
+
+	for (auto& layer : copy.layers_) {
+		for (auto* node : layer) {
+			std::map<Node*, double> connections;
+			for (const auto& connection : node->connections_) {
+				connections.emplace(nodes.at(connection.first), connection.second);
+			}
+			node->connections_.swap(connections);
+		}
+	}
+
+	swap(copy);
+}
+
+Network& Network::operator=(const Network& other) {
+	if (this != &other) {
+		Network copy(other);
+		swap(copy);
+	}
+	return *this;
+}
+
+void Network::swap(Network& other) noexcept {
+	layers_.swap(other.layers_);
+	std::swap(inputCount_, other.inputCount_);
+	std::swap(outputCount_, other.outputCount_);
 }
 
 Network::~Network() {

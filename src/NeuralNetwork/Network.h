@@ -12,6 +12,8 @@ class Network {
 		};
 
 		Network(int inputCount, int outputCount);
+		Network(const Network& other);
+		Network& operator=(const Network& other);
 		~Network();
 
 		std::vector<double> getOutputs(std::vector<double> inputs);
@@ -30,6 +32,7 @@ class Network {
 		int inputCount_;
 		int outputCount_;
 
+		void swap(Network& other) noexcept;
 		void cleanUpHiddenLayer();
 		void addnewHiddenNodes(int count);
 		void buildRandomConnections(double connectionProbability = 0.5);

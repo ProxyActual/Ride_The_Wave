@@ -21,6 +21,8 @@ class Node{
         }
 
     private:
+        friend class Network;
+
         std::map<Node*, double> connections_;
         bool wasCalculated_;
 
