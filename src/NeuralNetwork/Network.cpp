@@ -42,13 +42,9 @@ std::vector<double> Network::getOutputs(std::vector<double> inputs) {
 }
 
 void Network::evolve() {
-	std::cout << "adding new hidden nodes" << std::endl;
 	addnewHiddenNodes(1); // Example: Add one new hidden node before evolving connections
-	std::cout << "building random connections" << std::endl;
 	buildRandomConnections();
-	std::cout << "removing random connections" << std::endl;
 	removeRandomConnections(); // Example: Remove random connections after building new ones
-	std::cout << "cleaning up hidden layer" << std::endl;
 	cleanUpHiddenLayer();
 	// Implement the evolution logic for the network here
 }
@@ -85,23 +81,19 @@ bool Network::addConnection(Node* from, Node* to, double weight) {
 void Network::cleanUpHiddenLayer() {
 	std::vector<Node*> nodesToClean;
 	for (auto* node : layers_[HIDDEN]) {
-		std::cout << "\tLooking at Node " << node << std::endl;
 		bool shouldClean = true;
 		for (auto* outputNode : layers_[OUTPUT]) {
 			if (outputNode->isConnectedTo(node)) {
-				std::cout << "\tNode " << node << " is connected to output node " << outputNode << std::endl;
 				shouldClean = false;
 				break;
 			}
 		}
 		if (shouldClean) {
-			std::cout << "\tNode " << node << " will be cleaned up" << std::endl;
 			nodesToClean.push_back(node);
 		}
 	}	
 
 	for (auto* node : nodesToClean) {
-		std::cout << "\tCleaning up node " << node << std::endl;
 		layers_[HIDDEN].erase(
 			std::remove_if(
 				layers_[HIDDEN].begin(),

@@ -17,7 +17,6 @@ void Node::addConnection(Node* node, double weight) {
 }
 
 void Node::removeConnection(Node* node) {
-    std::cout << this << " Removing connection to node " << node << std::endl;
     if (connections_.find(node) != connections_.end()) {
         connections_.erase(node);
     }
