@@ -4,8 +4,15 @@ CORE_APP_SRC = AppMain.cpp \
 	CryptoHolding.cpp \
 	ConsoleUI.cpp \
 	ConsoleWidget.cpp \
+	CoinPredictor.cpp \
+	NeuralNetwork/Node.cpp \
+	NeuralNetwork/Network.cpp \
 
-CORE_APP_LIBS = -lcurl -lsodium
+CORE_APP_HEADERS = CoinPredictor.h \
+	NeuralNetwork/Network.h \
+	NeuralNetwork/Node.h \
+
+CORE_APP_LIBS = -lcurl -lsodium -pthread
 
 ConsoleUITest_SRC = ConsoleUITest.cpp \
 	ConsoleUI.cpp \
@@ -20,11 +27,17 @@ NLOHMANN_JSON_HEADER = $(THIRD_PARTY_DIR)/nlohmann/json.hpp
 
 CXXFLAGS = -std=c++20 -I$(THIRD_PARTY_DIR)
 
-appCore: $(CORE_APP_SRC) $(NLOHMANN_JSON_HEADER)
+appCore: $(CORE_APP_SRC) $(CORE_APP_HEADERS) $(NLOHMANN_JSON_HEADER)
 	g++ $(CXXFLAGS) -o appCore $(CORE_APP_SRC) $(CORE_APP_LIBS)
 
 consoleUITest: $(ConsoleUITest_SRC)
 	g++ $(CXXFLAGS) -o consoleUITest $(ConsoleUITest_SRC) $(CORE_APP_LIBS)		
+
+.PHONY: coinPredictorTest
+coinPredictorTest: CoinPredictorTest.cpp CoinPredictor.cpp CoinPredictor.h NeuralNetwork/Network.cpp NeuralNetwork/Network.h NeuralNetwork/Node.cpp NeuralNetwork/Node.h
+	mkdir -p NeuralNetwork/build
+	g++ $(CXXFLAGS) -o NeuralNetwork/build/coinPredictorTest CoinPredictorTest.cpp CoinPredictor.cpp NeuralNetwork/Network.cpp NeuralNetwork/Node.cpp -pthread
+	./NeuralNetwork/build/coinPredictorTest
 
 historyTest: $(HistoryTest_SRC)
 	g++ $(CXXFLAGS) -o historyTest  $(HistoryTest_SRC) $(CORE_APP_LIBS)

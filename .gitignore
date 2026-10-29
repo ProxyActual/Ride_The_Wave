@@ -2,3 +2,9 @@ config.txt
 .venvs/
 
 appCore
+# Per-coin neural network state and downloaded price histories
+*_network.txt
+*_network.txt.tmp
+histories/
+
+neuralNetworkTest

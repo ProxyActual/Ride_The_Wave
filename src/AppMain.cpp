@@ -4,13 +4,21 @@
 #include <vector>
 #include <thread>
 #include <chrono>
+#include <cstdlib>
+#include <ctime>
+#include <filesystem>
+#include <format>
+#include <map>
+#include <memory>
 #include "ConfigManager.h"
 #include "CryptoHolding.h"
 #include "ConsoleUI.h"
 #include "RobinhoodConnector.h"
 #include "ConsoleWidget.h"
+#include "CoinPredictor.h"
 
 static constexpr int REFRESH_INTERVAL_SECONDS = 5 * 60;
+static const std::string CONFIG_FILE = "config.txt";
 
 std::vector<CryptoHolding> getCryptoHoldings(RobinhoodConnector& robinhoodConnector){
     std::vector<CryptoHolding> cryptoHoldings;
@@ -59,7 +67,7 @@ static const std::vector<std::vector<double>> BaseTextColors{
 };
 
 void loadConsoleItems(ConfigManager& configManager){
-    if(!configManager.loadSettings("config.txt")){
+    if(!configManager.loadSettings(CONFIG_FILE)){
         std::cerr << "Failed to load configuration." << std::endl;
 
         std::cout << "Enter your API key: ";
@@ -71,10 +79,72 @@ void loadConsoleItems(ConfigManager& configManager){
         std::cout << "Enter your private key: ";
         std::getline(std::cin, configManager.localConfig_.private_key);
 
-        configManager.saveSettings("config.txt");
+        configManager.saveSettings(CONFIG_FILE);
     }
 
     std::cout << "Configuration loaded successfully." << std::endl;
+}
+
+CoinPredictor::Settings makePredictorSettings(const ConfigManager& configManager){
+    const auto settings = configManager.getSettings();
+    CoinPredictor::Settings predictorSettings;
+    predictorSettings.stateDirectory = std::filesystem::absolute(CONFIG_FILE).parent_path();
+    predictorSettings.historyDirectory = predictorSettings.stateDirectory / "histories";
+
+    const auto python = settings.find("python");
+    const auto venvPython = predictorSettings.stateDirectory / ".venv" / "bin" / "python";
+    if (python != settings.end() && !python->second.empty()) {
+        predictorSettings.pythonExecutable = python->second;
+    } else if (std::filesystem::exists(venvPython)) {
+        predictorSettings.pythonExecutable = venvPython.string();
+    } else {
+        predictorSettings.pythonExecutable = "python3";
+    }
+
+    const auto script = settings.find("history_script");
+    predictorSettings.historyScript = (script != settings.end() && !script->second.empty())
+        ? std::filesystem::path(script->second)
+        : predictorSettings.stateDirectory / "src" / "YahooFinanceHistoryCreator.py";
+    return predictorSettings;
+}
+
+void ensurePredictors(const std::vector<CryptoHolding>& cryptoHoldings,
+                      std::map<std::string, std::unique_ptr<CoinPredictor>>& predictors,
+                      const CoinPredictor::Settings& settings){
+    for (const CryptoHolding& cryptoHolding : cryptoHoldings) {
+        const std::string assetCode = cryptoHolding.getAssetCode();
+        if (predictors.find(assetCode) == predictors.end()) {
+            predictors.emplace(assetCode, std::make_unique<CoinPredictor>(assetCode, settings));
+        }
+    }
+}
+
+void drawPrediction(ConsoleWidget* textWidget, const CoinPredictor* predictor){
+    if (predictor == nullptr) {
+        return;
+    }
+    const CoinPredictor::Snapshot snapshot = predictor->getSnapshot();
+    if (!snapshot.ready) {
+        textWidget->putText(45, 0, std::format("{:<14}", "--"), ConsoleWidget::WHITE, ConsoleWidget::DEFAULT);
+        textWidget->putText(60, 0, std::format("{:<11}", "--"), ConsoleWidget::WHITE, ConsoleWidget::DEFAULT);
+        textWidget->putText(72, 0, std::format("{:<14}", "--"), ConsoleWidget::WHITE, ConsoleWidget::DEFAULT);
+        textWidget->putText(87, 0, std::format("{:<40.40}", snapshot.status), ConsoleWidget::WHITE, ConsoleWidget::DEFAULT);
+        return;
+    }
+
+    ConsoleWidget::Color directionColor = (snapshot.directionAccuracy > 50.0) ? ConsoleWidget::GREEN : ConsoleWidget::RED;
+    textWidget->putText(45, 0, std::format("{:<14}", std::format("{:.1f}% {}/{}", snapshot.directionAccuracy,
+        snapshot.correctDirections, snapshot.samples)), directionColor, ConsoleWidget::DEFAULT);
+
+    // Average of |actual - predicted| daily change, e.g. actual 4.0% vs predicted 5.5% is 1.5%.
+    textWidget->putText(60, 0, std::format("{:<11}", std::format("{:.2f}%", snapshot.meanAbsoluteError)), ConsoleWidget::WHITE, ConsoleWidget::DEFAULT);
+
+    ConsoleWidget::Color predictionColor = (snapshot.prediction < 0) ? ConsoleWidget::RED : ConsoleWidget::GREEN;
+    textWidget->putText(72, 0, std::format("{:<14}", std::format("{:+.3f}%", snapshot.prediction)), predictionColor, ConsoleWidget::DEFAULT);
+
+    std::string modelInfo = std::format("gen {} imp {}{}", snapshot.generations, snapshot.improvements,
+        snapshot.loadedFromFile ? " (loaded)" : "");
+    textWidget->putText(87, 0, std::format("{:<40.40}", modelInfo), ConsoleWidget::WHITE, ConsoleWidget::DEFAULT);
 }
 
 std::string convertColor(std::vector<double> color){
@@ -83,6 +153,7 @@ std::string convertColor(std::vector<double> color){
 
 int main(){
     static ConsoleUI consoleUI;
+    std::srand(static_cast<unsigned>(std::time(nullptr)));
     std::cout << "Welcome to Ride The Wave!" << std::endl;
 
     std::cout << "Loading configuration..." << std::endl;
@@ -96,12 +167,17 @@ int main(){
 
     std::map<CryptoHolding*, ConsoleWidget*> TextWidgetMap;
 
+    const CoinPredictor::Settings predictorSettings = makePredictorSettings(configManager);
+    std::map<std::string, std::unique_ptr<CoinPredictor>> predictors;
+    ensurePredictors(cryptoHoldings, predictors, predictorSettings);
+
     ConsoleWidget Title(1, 1, 150, 4);
 
     Title.putText(0, 0, "======================================================", ConsoleWidget::WHITE, ConsoleWidget::DEFAULT);
     Title.putText(0, 1, "||        Welcome to Ride The Wave!                 ||", ConsoleWidget::WHITE, ConsoleWidget::DEFAULT);
     Title.putText(0, 2, "======================================================", ConsoleWidget::WHITE, ConsoleWidget::DEFAULT);
-    Title.putText(0, 3, "COIN    PROFIT", ConsoleWidget::WHITE, ConsoleWidget::DEFAULT);
+    Title.putText(0, 3, std::format("{:<7}{:<11}{:<12}{:<15}{:<15}{:<12}{:<15}{}",
+        "COIN", "PROFIT", "REFRESH", "HIGH VALUE", "DIR HIT", "AVG DIFF", "NEXT DAY", "MODEL"), ConsoleWidget::WHITE, ConsoleWidget::DEFAULT);
 
     int number = 5;
     for (CryptoHolding& cryptoHolding : cryptoHoldings) {
@@ -142,6 +218,9 @@ int main(){
 
             textWidget-> putText(30, 0, std::to_string(cryptoHolding.getHighMarketValueUSD()), highestProfitColor, ConsoleWidget::DEFAULT);
 
+            const auto predictor = predictors.find(cryptoHolding.getAssetCode());
+            drawPrediction(textWidget, predictor == predictors.end() ? nullptr : predictor->second.get());
+
             if(cryptoHolding.getProfitPrecent() > 0){
                 if(cryptoHolding.getHighMarketValueUSD() - cryptoHolding.getCurrentMarketValue() > 0.01){
                     cryptoHolding.sell();
@@ -155,6 +234,7 @@ int main(){
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         if(sold){
             cryptoHoldings = getCryptoHoldings(robinhoodConnector);
+            ensurePredictors(cryptoHoldings, predictors, predictorSettings);
             consoleUI.clearScreen();
             Title.forceUpdate();
             for (CryptoHolding& cryptoHolding : cryptoHoldings) {

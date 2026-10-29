@@ -1,7 +1,10 @@
 #include "Network.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <cstdlib>
+#include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <utility>
 #include <memory>
@@ -21,6 +24,11 @@ Network::Network(int inputCount, int outputCount)
 	for(int i = 0; i < outputCount_; ++i) {
 		layers_[OUTPUT].push_back(new Node());
 	}
+
+	if (inputCount_ > 0 && outputCount_ > 0) {
+		addConnection(layers_[OUTPUT][0], layers_[INPUT][0], 1.0);
+	}
+
 }
 
 Network::Network(const Network& other) : Network(0, 0) {
@@ -88,12 +96,119 @@ std::vector<double> Network::getOutputs(std::vector<double> inputs) {
 	return outputs;
 }
 
-void Network::evolve() {
-	addnewHiddenNodes(1); // Example: Add one new hidden node before evolving connections
-	buildRandomConnections();
-	removeRandomConnections(); // Example: Remove random connections after building new ones
+std::vector<double> Network::calculate(const std::vector<double>& inputs) {
+	resetCalculatedFlags();
+	return getOutputs(inputs);
+}
+
+void Network::resetCalculatedFlags() {
+	for (auto* node : layers_[HIDDEN]) {
+		node->resetCalculatedFlag();
+	}
+	for (auto* node : layers_[OUTPUT]) {
+		node->resetCalculatedFlag();
+	}
+}
+
+void Network::evolve(double connectionProbability, double deletionProbability) {
+	addnewHiddenNodes(rand() % 10);
+	buildRandomConnections(connectionProbability);
+	removeRandomConnections(deletionProbability);
 	cleanUpHiddenLayer();
-	// Implement the evolution logic for the network here
+}
+
+void Network::mutateWeights(double mutationProbability, double magnitude) {
+	for (auto& layer : layers_) {
+		for (auto* node : layer) {
+			for (auto& connection : node->connections_) {
+				double randomValue = static_cast<double>(rand()) / RAND_MAX;
+				if (randomValue < mutationProbability) {
+					connection.second += magnitude * (2.0 * static_cast<double>(rand()) / RAND_MAX - 1.0);
+				}
+			}
+		}
+	}
+}
+
+bool Network::saveToFile(const std::string& path) const {
+	std::unordered_map<const Node*, size_t> indices;
+	size_t connectionCount = 0;
+	for (const auto& layer : layers_) {
+		for (const auto* node : layer) {
+			indices.emplace(node, indices.size());
+			connectionCount += node->connections_.size();
+		}
+	}
+
+	const std::string tempPath = path + ".tmp";
+	{
+		std::ofstream file(tempPath, std::ios::trunc);
+		if (!file) {
+			return false;
+		}
+		file << "RideTheWaveNetwork 1\n";
+		file << "inputs " << layers_[INPUT].size() << "\n";
+		file << "hidden " << layers_[HIDDEN].size() << "\n";
+		file << "outputs " << layers_[OUTPUT].size() << "\n";
+		file << "connections " << connectionCount << "\n";
+		file << std::setprecision(17);
+		for (const auto& layer : layers_) {
+			for (const auto* node : layer) {
+				for (const auto& connection : node->connections_) {
+					auto target = indices.find(connection.first);
+					if (target == indices.end()) {
+						return false;
+					}
+					file << indices.at(node) << " " << target->second << " " << connection.second << "\n";
+				}
+			}
+		}
+		if (!file.good()) {
+			return false;
+		}
+	}
+	return std::rename(tempPath.c_str(), path.c_str()) == 0;
+}
+
+bool Network::loadFromFile(const std::string& path) {
+	std::ifstream file(path);
+	if (!file) {
+		return false;
+	}
+
+	std::string magic, label;
+	int version = 0;
+	size_t inputs = 0, hidden = 0, outputs = 0, connections = 0;
+	if (!(file >> magic >> version) || magic != "RideTheWaveNetwork" || version != 1) {
+		return false;
+	}
+	if (!(file >> label >> inputs) || label != "inputs" ||
+		!(file >> label >> hidden) || label != "hidden" ||
+		!(file >> label >> outputs) || label != "outputs" ||
+		!(file >> label >> connections) || label != "connections") {
+		return false;
+	}
+
+	Network loaded(static_cast<int>(inputs), static_cast<int>(outputs));
+	loaded.addnewHiddenNodes(static_cast<int>(hidden));
+	std::vector<Node*> nodes;
+	for (auto& layer : loaded.layers_) {
+		nodes.insert(nodes.end(), layer.begin(), layer.end());
+	}
+
+	for (size_t i = 0; i < connections; ++i) {
+		size_t from = 0, to = 0;
+		double weight = 0.0;
+		if (!(file >> from >> to >> weight) || from >= nodes.size() || to >= nodes.size()) {
+			return false;
+		}
+		if (!loaded.addConnection(nodes[from], nodes[to], weight)) {
+			return false;
+		}
+	}
+
+	swap(loaded);
+	return true;
 }
 
 bool Network::addNode(Node* node, LayerType layer) {
@@ -152,6 +267,10 @@ void Network::cleanUpHiddenLayer() {
 			layers_[HIDDEN].end()
 		);
 	}
+	// Only other unreachable hidden nodes can reference these nodes, and they are removed too.
+	for (auto* node : nodesToClean) {
+		delete node;
+	}
 }
 
 void Network::addnewHiddenNodes(int count) {
@@ -182,7 +301,13 @@ void Network::buildRandomConnections(double connectionProbability) {
 			double weight = 2.0 * static_cast<double>(rand()) / RAND_MAX - 1.0;
 			double randomValue = static_cast<double>(rand()) / RAND_MAX; // Random value between 0 and 1
 			if (randomValue < connectionProbability) {
-				addConnection(fromNode, toNode, weight);
+				auto existing = fromNode->connections_.find(toNode);
+				if (existing != fromNode->connections_.end()) {
+					// Already connected: strengthen or weaken it by the new weight instead of replacing it.
+					existing->second += weight;
+				} else {
+					addConnection(fromNode, toNode, weight);
+				}
 			}
 		}
 	}

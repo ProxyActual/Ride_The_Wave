@@ -1,6 +1,8 @@
 #include "Node.h"
 
 #include <iostream>
+#include <unordered_set>
+#include <vector>
 
 Node::Node() {
     wasCalculated_ = false;
@@ -23,14 +25,19 @@ void Node::removeConnection(Node* node) {
 }
 
 bool Node::isConnectedTo(Node* node) {
-    if(node == this){
-
-        return true;
-    }
-    for (auto& connection : connections_) {
-        Node* nodePtr = connection.first;
-        if (nodePtr->isConnectedTo(node)) {
+    std::vector<Node*> pending{this};
+    std::unordered_set<Node*> visited;
+    while (!pending.empty()) {
+        Node* current = pending.back();
+        pending.pop_back();
+        if (current == node) {
             return true;
+        }
+        if (!visited.insert(current).second) {
+            continue;
+        }
+        for (auto& connection : current->connections_) {
+            pending.push_back(connection.first);
         }
     }
     return false;

@@ -1,3 +1,6 @@
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>
@@ -128,7 +131,98 @@ bool NetworkRandomWeightTest() {
 	return hasNegative && hasPositive;
 }
 
+bool NetworkCalculateTest() {
+	Network network(2, 0);
+	auto* hidden = new Node();
+	auto* output = new Node();
+	network.addNode(hidden, Network::HIDDEN);
+	network.addNode(output, Network::OUTPUT);
+	network.addConnection(output, hidden, 2.0);
+	hidden->setValue(5.0);
+	// getOutputs keeps the stale cached hidden value; calculate recomputes it.
+	bool cachedOk = network.getOutputs({1.0, 0.0}) == std::vector<double>({10.0});
+	bool freshOk = network.calculate({1.0, 0.0}) == std::vector<double>({0.0});
+	return cachedOk && freshOk;
+}
+
+bool NetworkSaveLoadTest() {
+	std::srand(3);
+	Network original(4, 2);
+	for (int i = 0; i < 5; ++i) {
+		original.evolve(0.3, 0.1);
+		original.mutateWeights(0.5, 0.2);
+	}
+	const std::string path = "networkSaveLoadTest.net";
+	if (!original.saveToFile(path)) {
+		return false;
+	}
+	Network loaded(0, 0);
+	if (!loaded.loadFromFile(path)) {
+		return false;
+	}
+	std::remove(path.c_str());
+	if (loaded.getNetworkSize() != original.getNetworkSize() || loaded.getInputCount() != 4 || loaded.getOutputCount() != 2) {
+		return false;
+	}
+	for (const auto& inputs : std::vector<std::vector<double>>{{1, 2, 3, 4}, {-1, 0.5, 0, 2}}) {
+		// Nodes sum their inputs in pointer order, which differs after a reload, so allow rounding error.
+		const auto loadedOutputs = loaded.calculate(inputs);
+		const auto originalOutputs = original.calculate(inputs);
+		if (loadedOutputs.size() != originalOutputs.size()) {
+			return false;
+		}
+		for (size_t i = 0; i < loadedOutputs.size(); ++i) {
+			if (std::abs(loadedOutputs[i] - originalOutputs[i]) > 1e-9 * std::max(1.0, std::abs(originalOutputs[i]))) {
+				return false;
+			}
+		}
+	}
+	Network untouched(1, 1);
+	return !untouched.loadFromFile("does_not_exist.net") && untouched.getNetworkSize() == 2;
+}
+
+bool EvolveAdjustsExistingConnectionTest() {
+	const unsigned seed = 7;
+	Network network(0, 0);
+	auto* input = new Node();
+	auto* output = new Node();
+	network.addNode(input, Network::INPUT);
+	network.addNode(output, Network::OUTPUT);
+	input->setValue(1.0);
+	network.addConnection(output, input, 0.5);
+
+	// evolve(1.0, 0.0) adds hidden node H, then tries each pair in order
+	// (H,H) (H,input) (output,H) (output,input), drawing a weight then a roll for each.
+	std::srand(seed);
+	std::vector<double> weights;
+	for (int pair = 0; pair < 4; ++pair) {
+		weights.push_back(2.0 * static_cast<double>(std::rand()) / RAND_MAX - 1.0);
+		std::rand();
+	}
+	const double expected = weights[2] * weights[1] + (0.5 + weights[3]);
+
+	std::srand(seed);
+	network.evolve(1.0, 0.0);
+	const auto outputs = network.calculate({});
+	return outputs.size() == 1 && std::abs(outputs[0] - expected) < 1e-12;
+}
+
 int main() {
+	if (!EvolveAdjustsExistingConnectionTest()) {
+		std::cerr << "Evolve Adjusts Existing Connection Test Failed" << std::endl;
+		return 1;
+	}
+	std::cout << "Evolve Adjusts Existing Connection Test Passed" << std::endl;
+	if (!NetworkCalculateTest()) {
+		std::cerr << "Network Calculate Test Failed" << std::endl;
+		return 1;
+	}
+	std::cout << "Network Calculate Test Passed" << std::endl;
+	if (!NetworkSaveLoadTest()) {
+		std::cerr << "Network Save/Load Test Failed" << std::endl;
+		return 1;
+	}
+	std::cout << "Network Save/Load Test Passed" << std::endl;
 	if (!NetworkRandomWeightTest()) {
 		std::cerr << "Network Random Weight Test Failed" << std::endl;
 		return 1;
